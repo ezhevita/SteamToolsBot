@@ -1,7 +1,7 @@
 version: "3.7"
 services:
   bot:
-    build: .
+    image: ghcr.io/vital7/steamtoolsbot
     volumes:
       - ./SteamToolsBot/config.json:/app/config.json
       - ./SteamToolsBot/banned.json:/app/banned.json
