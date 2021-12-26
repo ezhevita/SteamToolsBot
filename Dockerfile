@@ -3,18 +3,16 @@ WORKDIR /app
 
 FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
 WORKDIR /src
-COPY ["TelegramSteamKeysChecker/TelegramSteamKeysChecker.csproj", "TelegramSteamKeysChecker/"]
-RUN dotnet restore "TelegramSteamKeysChecker/TelegramSteamKeysChecker.csproj"
+COPY ["SteamToolsBot/SteamToolsBot.csproj", "SteamToolsBot/"]
+RUN dotnet restore "SteamToolsBot/SteamToolsBot.csproj"
 COPY . .
-WORKDIR "/src/TelegramSteamKeysChecker"
-RUN dotnet build "TelegramSteamKeysChecker.csproj" -c Release -o /app/build
+WORKDIR "/src/SteamToolsBot"
+RUN dotnet build "SteamToolsBot.csproj" -c Release -o /app/build
 
 FROM build AS publish
-RUN dotnet publish "TelegramSteamKeysChecker.csproj" -c Release -o /app/publish
+RUN dotnet publish "SteamToolsBot.csproj" -c Release -o /app/publish
 
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-COPY ["TelegramSteamKeysChecker/config.json", "."]
-COPY ["TelegramSteamKeysChecker/banned.json", "."]
-ENTRYPOINT ["dotnet", "TelegramSteamKeysChecker.dll"]
+ENTRYPOINT ["dotnet", "SteamToolsBot.dll"]
