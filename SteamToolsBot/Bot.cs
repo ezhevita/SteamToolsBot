@@ -16,7 +16,7 @@ public class Bot
 {
 	private readonly HashSet<long> bannedUsers;
 	private readonly Dictionary<string, ICommand> commands;
-	private readonly Dictionary<string, SemaphoreSlim> semaphores;
+	private readonly Dictionary<ICommand, SemaphoreSlim> semaphores;
 	private readonly string username;
 	private readonly RateLimiter rateLimiter;
 
@@ -25,8 +25,8 @@ public class Bot
 		this.bannedUsers = bannedUsers;
 		this.username = username;
 		this.rateLimiter = rateLimiter;
-		this.commands = commands.ToDictionary(x => x.Command, x => x);
-		semaphores = commands.ToDictionary(x => x.Command, _ => new SemaphoreSlim(1, 1));
+		this.commands = commands.ToDictionary(x => x.Command, x => x, StringComparer.OrdinalIgnoreCase);
+		semaphores = commands.ToDictionary(x => x, _ => new SemaphoreSlim(1, 1));
 	}
 
 	internal static Task HandleError(ITelegramBotClient client, Exception exception, CancellationToken cancellationToken)
@@ -67,7 +67,7 @@ public class Bot
 		if (commands.TryGetValue(commandText, out var command))
 		{
 			var sentMessage = await client.SendTextMessageAsync(message.Chat.Id, "Please wait...", cancellationToken: cancellationToken);
-			var semaphore = semaphores[commandText];
+			var semaphore = semaphores[command];
 			await semaphore.WaitAsync(cancellationToken);
 
 			try
@@ -77,7 +77,7 @@ public class Bot
 			} catch (Exception e)
 			{
 				Log.Error(e, "Got exception!");
-				await ExceptionHandler.Silence(() => client.EditMessageTextAsync(message.Chat.Id, sentMessage.MessageId, "An error occured, please try again", cancellationToken: cancellationToken));
+				await ExceptionHandler.Silence(() => client.SendTextMessageAsync(message.Chat.Id, "An error occured, please try again", cancellationToken: cancellationToken));
 			} finally
 			{
 				semaphore.Release();
