@@ -60,7 +60,7 @@ public class CardPriceCommand : ICommand
 	{
 		if (saleAppID == 0)
 		{
-			return "";
+			return "There is no sale right now!";
 		}
 
 		return await executePolicy.ExecuteAsync(_ => GetResponse(), new Context(Command));
