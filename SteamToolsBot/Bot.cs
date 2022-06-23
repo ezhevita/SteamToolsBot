@@ -73,7 +73,11 @@ public class Bot
 			try
 			{
 				var response = await command.Execute();
-				await client.SendTextMessageAsync(message.Chat.Id, response, ParseMode.Markdown, cancellationToken: cancellationToken);
+
+				if (!string.IsNullOrEmpty(response))
+				{
+					await client.SendTextMessageAsync(message.Chat.Id, response, ParseMode.Markdown, cancellationToken: cancellationToken);
+				}
 			} catch (Exception e)
 			{
 				Log.Error(e, "Got exception!");

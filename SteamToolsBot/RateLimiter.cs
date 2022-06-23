@@ -8,8 +8,13 @@ namespace SteamToolsBot;
 public class RateLimiter
 {
 	private readonly ConnectionMultiplexer redis;
+	private readonly TimeSpan cooldown;
 
-	public RateLimiter(ConnectionMultiplexer redis) => this.redis = redis;
+	public RateLimiter(ConnectionMultiplexer redis, TimeSpan cooldown)
+	{
+		this.redis = redis;
+		this.cooldown = cooldown;
+	}
 
 	public async Task<bool> ShouldUserBeRejected(long id)
 	{
@@ -19,7 +24,7 @@ public class RateLimiter
 		if (await database.KeyExistsAsync(key))
 			return true;
 
-		await database.StringSetAsync(key, new RedisValue("1"), TimeSpan.FromSeconds(1));
+		await database.StringSetAsync(key, new RedisValue("1"), cooldown);
 
 		return false;
 	}

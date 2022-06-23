@@ -21,4 +21,6 @@ public class BotConfiguration
 	public long TelegramOwnerID { get; init; }
 
 	public string TelegramToken { get; init; } = null!;
+	
+	public ushort CooldownSeconds { get; init; }
 }

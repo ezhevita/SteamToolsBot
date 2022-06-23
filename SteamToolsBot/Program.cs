@@ -101,7 +101,7 @@ internal static class Program
 		).Configure(settings => settings.WithTextJsonSerializer());
 
 		var redis = await ConnectionMultiplexer.ConnectAsync("redis");
-		var rateLimiter = new RateLimiter(redis);
+		var rateLimiter = new RateLimiter(redis, TimeSpan.FromSeconds(config.CooldownSeconds));
 		var steamClient = new FlurlClient("https://steamcommunity.com").Configure(settings => settings.WithTextJsonSerializer());
 
 		try
