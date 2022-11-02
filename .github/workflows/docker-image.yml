@@ -21,5 +21,5 @@ jobs:
       - name: Build and publish Docker image from Dockerfile
         uses: docker/build-push-action@v2.7.0
         with:
-          tags: "ghcr.io/vital7/steamtoolsbot:latest"
+          tags: ghcr.io/ezhevita/steamtoolsbot:latest
           push: true
