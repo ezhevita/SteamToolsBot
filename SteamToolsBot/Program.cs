@@ -124,7 +124,8 @@ internal static class Program
 					new SocketsHttpHandler
 					{
 						Proxy = proxy,
-						UseProxy = true
+						UseProxy = true,
+						AutomaticDecompression = DecompressionMethods.All
 					}
 				)
 				{
