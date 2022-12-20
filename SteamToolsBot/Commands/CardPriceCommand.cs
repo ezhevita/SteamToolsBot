@@ -35,7 +35,7 @@ public class CardPriceCommand : ICommand
 	{
 		executePolicy = Policy.CacheAsync<string>(
 			new MemoryCacheProvider(new MemoryCache(new MemoryCacheOptions())),
-			TimeSpan.FromMinutes(3)
+			TimeSpan.FromMinutes(10)
 		);
 
 		marketVolumePolicy = Policy.WrapAsync(
