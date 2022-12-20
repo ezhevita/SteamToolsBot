@@ -102,7 +102,36 @@ internal static class Program
 
 		var redis = await ConnectionMultiplexer.ConnectAsync("redis");
 		var rateLimiter = new RateLimiter(redis, TimeSpan.FromSeconds(config.CooldownSeconds));
-		var steamClient = new FlurlClient("https://steamcommunity.com").Configure(settings => settings.WithTextJsonSerializer());
+
+		WebProxy? proxy = null;
+		if (config.SteamProxy != null)
+		{
+			var proxyUri = new Uri(config.SteamProxy);
+
+			var credentials = string.IsNullOrEmpty(proxyUri.UserInfo)
+				? null
+				: proxyUri.UserInfo.Split(':') switch
+				{
+					[var user, var password] => new NetworkCredential(user, password),
+					_ => throw new ArgumentOutOfRangeException(nameof(proxyUri))
+				};
+
+			proxy = new WebProxy(proxyUri, true, null, credentials);
+		}
+
+		var steamClient = new FlurlClient(
+				new HttpClient(
+					new SocketsHttpHandler
+					{
+						Proxy = proxy,
+						UseProxy = true
+					}
+				)
+				{
+					BaseAddress = new Uri("https://steamcommunity.com")
+				}
+			)
+			.Configure(settings => settings.WithTextJsonSerializer());
 
 		try
 		{
