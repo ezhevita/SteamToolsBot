@@ -100,7 +100,7 @@ internal static class Program
 			}
 		).Configure(settings => settings.WithTextJsonSerializer());
 
-		var redis = await ConnectionMultiplexer.ConnectAsync("redis");
+		var redis = await ConnectionMultiplexer.ConnectAsync(config.RedisHostname);
 		var rateLimiter = new RateLimiter(redis, TimeSpan.FromSeconds(config.CooldownSeconds));
 
 		WebProxy? proxy = null;

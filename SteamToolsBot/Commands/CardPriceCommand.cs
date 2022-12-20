@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -76,7 +77,7 @@ public class CardPriceCommand : ICommand
 			return;
 		}
 
-		string cacheFileName = saleAppID + ".json";
+		var cacheFileName = Path.Join("cache", saleAppID + ".json");
 		if (File.Exists(cacheFileName))
 		{
 			await using var cardsFile = File.OpenRead(cacheFileName);

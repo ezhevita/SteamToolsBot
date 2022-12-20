@@ -25,4 +25,6 @@ public class BotConfiguration
 	public ushort CooldownSeconds { get; init; }
 
 	public string? SteamProxy { get; init; }
+
+	public string RedisHostname { get; init; } = null!;
 }
