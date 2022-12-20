@@ -5,6 +5,7 @@ using Flurl.Http;
 using Microsoft.Extensions.Caching.Memory;
 using Polly;
 using Polly.Caching.Memory;
+using SteamToolsBot.Exceptions;
 
 namespace SteamToolsBot.Commands;
 
@@ -18,9 +19,14 @@ public class FiveDollarCommand : ICommand
 	public string EnglishDescription => "Convert Steam $5 to Russian roubles";
 	public string RussianDescription => "Конвертация $5 в Steam в рубли";
 
-	public Task<string> Execute()
+	public async Task<string> Execute()
 	{
-		return executePolicy.ExecuteAsync(_ => GetPrice(), new Context(Command));
+		var result = await executePolicy.ExecuteAsync(_ => GetPrice(), new Context(Command));
+
+		if (string.IsNullOrEmpty(result))
+			throw new RequestFailedException();
+
+		return result;
 	}
 
 	public FiveDollarCommand()
