@@ -110,8 +110,15 @@ public class CardPriceCommand : ICommand
 			throw new RequestFailedException("Could not retrieve card information!");
 		}
 
-		var cardIDs = await Task.WhenAll(marketCards.Results.Select(card => GetItemMarketID(753, card.HashName)));
-		cards = marketCards.Results.Zip(cardIDs).ToDictionary(x => x.Second, x => x.First.Name);
+		var internalCards = new Dictionary<uint, string>(marketCards.Results.Length);
+		foreach (var card in marketCards.Results)
+		{
+			var itemMarketID = await GetItemMarketID(753, card.HashName);
+			internalCards.Add(itemMarketID, card.Name);
+			await Task.Delay(1000);
+		}
+
+		cards = internalCards;
 		await using var cardsCache = File.OpenWrite(cacheFileName);
 		await JsonSerializer.SerializeAsync(cardsCache, cards);
 	}
