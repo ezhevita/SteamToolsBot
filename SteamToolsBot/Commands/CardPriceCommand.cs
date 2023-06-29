@@ -94,7 +94,7 @@ public class CardPriceCommand : ICommand
 			.SetQueryParams(
 				new Dictionary<string, object>(7)
 				{
-					{"count", 10},
+					{"count", 100},
 					{"norender", "1"},
 					{"sort_column", "price"},
 					{"sord_dir", "desc"},
@@ -111,7 +111,7 @@ public class CardPriceCommand : ICommand
 		}
 
 		var internalCards = new Dictionary<uint, string>(marketCards.Results.Length);
-		foreach (var card in marketCards.Results)
+		foreach (var card in marketCards.Results.Where(x => !x.Name.Contains("Mystery")))
 		{
 			var itemMarketID = await GetItemMarketID(753, card.HashName);
 			internalCards.Add(itemMarketID, card.Name);
