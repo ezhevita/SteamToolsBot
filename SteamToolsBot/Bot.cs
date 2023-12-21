@@ -76,9 +76,11 @@ public class Bot
 
 				if (!string.IsNullOrEmpty(response))
 				{
-					await client.SendTextMessageAsync(message.Chat.Id, response, ParseMode.Markdown, cancellationToken: cancellationToken);
+					await client.SendTextMessageAsync(message.Chat.Id, response, parseMode: ParseMode.Markdown, cancellationToken: cancellationToken);
 				}
+#pragma warning disable CA1031
 			} catch (Exception e)
+#pragma warning restore CA1031
 			{
 				Log.Error(e, "Got exception!");
 				await ExceptionHandler.Silence(() => client.SendTextMessageAsync(message.Chat.Id, "An error occured, please try again", cancellationToken: cancellationToken));

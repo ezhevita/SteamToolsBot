@@ -3,7 +3,9 @@ using System.Diagnostics.CodeAnalysis;
 namespace SteamToolsBot.Enums;
 
 [SuppressMessage("ReSharper", "InconsistentNaming")]
+#pragma warning disable CA1027
 public enum ECurrencyCode
+#pragma warning restore CA1027
 {
 	Invalid = 0,
 	USD = 1,

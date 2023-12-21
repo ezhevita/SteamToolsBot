@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using SteamToolsBot.Enums;
 
 namespace SteamToolsBot;
@@ -6,7 +7,7 @@ public class BotConfiguration
 {
 	public string BotName { get; init; } = null!;
 
-	public ECurrencyCode[] Currencies { get; init; } = null!;
+	public IList<ECurrencyCode> Currencies { get; init; } = null!;
 
 	public ulong FiveDollarItemID { get; init; }
 

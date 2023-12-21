@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using SteamToolsBot.Enums;
 
@@ -22,6 +23,6 @@ internal record ItemPriceInfo(string Name, IReadOnlyDictionary<ECurrencyCode, Or
 	{
 		return
 			$"*{Name}*\n{string.Join("", PricesPerCurrency.Select(priceCurrency => $"\t{priceCurrency.Value.Quantity} sell orders at {priceCurrency.Value.Price:F2}" + CurrencyNumberToString(priceCurrency.Key) + "\n"))}\t" +
-			$"Volume: {Volume?.ToString() ?? "unknown"}\n";
+			$"Volume: {Volume?.ToString(CultureInfo.InvariantCulture) ?? "unknown"}\n";
 	}
 }

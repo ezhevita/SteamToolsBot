@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using Flurl.Http;
 
@@ -9,5 +10,5 @@ public interface ICommand
 	string EnglishDescription { get; }
 	string RussianDescription { get; }
 	Task<string> Execute();
-	Task Initialize(BotConfiguration config, IFlurlClient farmClient, IFlurlClient steamClient);
+	Task Initialize(BotConfiguration config, IFlurlClient farmClient, Func<IFlurlClient> steamClientFactory);
 }

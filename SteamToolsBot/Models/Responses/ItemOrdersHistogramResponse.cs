@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace SteamToolsBot.Models.Responses;
@@ -5,5 +6,5 @@ namespace SteamToolsBot.Models.Responses;
 public record ItemOrdersHistogramResponse : ResultResponse
 {
 	[JsonPropertyName("sell_order_table")]
-	public OrderRecord[] SellOrderTable { get; init; } = null!;
+	public IList<OrderRecord> SellOrderTable { get; init; } = null!;
 }

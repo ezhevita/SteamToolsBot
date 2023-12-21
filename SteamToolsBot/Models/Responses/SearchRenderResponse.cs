@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace SteamToolsBot.Models.Responses;
@@ -5,5 +6,5 @@ namespace SteamToolsBot.Models.Responses;
 public record SearchRenderResponse : BooleanResponse
 {
 	[JsonPropertyName("results")]
-	public MarketItem[] Results { get; init; } = null!;
+	public IList<MarketItem> Results { get; init; } = null!;
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -27,8 +28,8 @@ public class CardPriceCommand : ICommand
 	private readonly AsyncPolicy<OrderRecord> pricePolicy;
 
 	private IReadOnlyDictionary<uint, string> cards = null!;
-	private ECurrencyCode[] currencyCodes = null!;
-	private IFlurlClient httpClient = null!;
+	private IList<ECurrencyCode> currencyCodes = null!;
+	private Func<IFlurlClient> httpClientFactory = null!;
 
 	private uint saleAppID;
 
@@ -67,11 +68,11 @@ public class CardPriceCommand : ICommand
 		return await executePolicy.ExecuteAsync(_ => GetResponse(), new Context(Command));
 	}
 
-	public async Task Initialize(BotConfiguration config, IFlurlClient farmClient, IFlurlClient steamClient)
+	public async Task Initialize(BotConfiguration config, IFlurlClient farmClient, Func<IFlurlClient> steamClientFactory)
 	{
 		currencyCodes = config.Currencies;
 		saleAppID = config.SaleAppID;
-		httpClient = steamClient;
+		httpClientFactory = steamClientFactory;
 		if (saleAppID == 0)
 		{
 			return;
@@ -89,7 +90,7 @@ public class CardPriceCommand : ICommand
 			}
 		}
 
-		var marketCards = await httpClient
+		var marketCards = await httpClientFactory()
 			.Request("market", "search", "render")
 			.SetQueryParams(
 				new Dictionary<string, object>(7)
@@ -110,7 +111,7 @@ public class CardPriceCommand : ICommand
 			throw new RequestFailedException("Could not retrieve card information!");
 		}
 
-		var internalCards = new Dictionary<uint, string>(marketCards.Results.Length);
+		var internalCards = new Dictionary<uint, string>(marketCards.Results.Count);
 		foreach (var card in marketCards.Results.Where(x => !x.Name.Contains("Mystery")))
 		{
 			var itemMarketID = await GetItemMarketID(753, card.HashName);
@@ -125,16 +126,16 @@ public class CardPriceCommand : ICommand
 
 	private async Task<uint> GetItemMarketID(uint appID, string marketHashName)
 	{
-		var response = await httpClient
+		var response = await httpClientFactory()
 			.Request("market", "listings", appID, marketHashName)
 			.GetStringAsync();
 
-		return uint.Parse(itemIDRegex.Match(response).Groups[1].ValueSpan);
+		return uint.Parse(itemIDRegex.Match(response).Groups[1].ValueSpan, CultureInfo.InvariantCulture);
 	}
 
 	private async Task<uint?> GetItemMarketVolume(string hashName)
 	{
-		var response = await httpClient.Request("market", "priceoverview")
+		var response = await httpClientFactory().Request("market", "priceoverview")
 			.SetQueryParams(
 				new
 				{
@@ -153,7 +154,7 @@ public class CardPriceCommand : ICommand
 		return response.Volume;
 	}
 
-	private async Task<ItemPriceInfo> GetItemPriceInformation(uint appID, uint itemID, string name, ECurrencyCode[] currencies)
+	private async Task<ItemPriceInfo> GetItemPriceInformation(uint appID, uint itemID, string name, IList<ECurrencyCode> currencies)
 	{
 		var tasks = currencies.Select(currency => pricePolicy.ExecuteAsync(() => GetPriceAndQuantityOfItem(itemID, currency)));
 
@@ -167,7 +168,7 @@ public class CardPriceCommand : ICommand
 
 	private async Task<OrderRecord> GetPriceAndQuantityOfItem(uint itemID, ECurrencyCode currency)
 	{
-		var response = await httpClient.Request("market", "itemordershistogram")
+		var response = await httpClientFactory().Request("market", "itemordershistogram")
 			.SetQueryParams(
 				new
 				{
@@ -181,7 +182,7 @@ public class CardPriceCommand : ICommand
 		if (response.Success != EResult.OK)
 			throw new RequestFailedException(response.Success);
 
-		if (response.SellOrderTable.Length == 0)
+		if (response.SellOrderTable.Count == 0)
 			throw new RequestFailedException();
 
 		return response.SellOrderTable.OrderBy(x => x.Price).First();

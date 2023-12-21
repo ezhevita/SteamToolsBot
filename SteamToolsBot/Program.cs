@@ -9,13 +9,12 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Flurl.Http;
-using Flurl.Serialization.TextJson;
 using Serilog;
 using Serilog.Events;
 using StackExchange.Redis;
 using SteamToolsBot.Commands;
 using Telegram.Bot;
-using Telegram.Bot.Extensions.Polling;
+using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using File = System.IO.File;
@@ -53,10 +52,12 @@ internal static class Program
 			}
 		}
 
+#pragma warning disable CA1305
 		Log.Logger = new LoggerConfiguration()
 			.MinimumLevel.Debug()
 			.WriteTo.Console()
 			.WriteTo.File("logs/log.txt", rollingInterval: RollingInterval.Day)
+#pragma warning restore CA1305
 			.WriteTo.Telegram(config.TelegramToken, config.TelegramOwnerID.ToString(CultureInfo.InvariantCulture), restrictedToMinimumLevel: LogEventLevel.Information)
 			.CreateLogger();
 
@@ -98,7 +99,7 @@ internal static class Program
 					{"Authentication", config.IPCPassword}
 				}
 			}
-		).Configure(settings => settings.WithTextJsonSerializer());
+		);
 
 		var redis = await ConnectionMultiplexer.ConnectAsync(config.RedisHostname);
 		var rateLimiter = new RateLimiter(redis, TimeSpan.FromSeconds(config.CooldownSeconds));
@@ -119,7 +120,7 @@ internal static class Program
 			proxy = new WebProxy(proxyUri, true, null, credentials);
 		}
 
-		var steamClient = new FlurlClient(
+		var steamClientFactory = () => new FlurlClient(
 				new HttpClient(
 					new SocketsHttpHandler
 					{
@@ -131,13 +132,14 @@ internal static class Program
 				{
 					BaseAddress = new Uri("https://steamcommunity.com")
 				}
-			)
-			.Configure(settings => settings.WithTextJsonSerializer());
+			);
 
 		try
 		{
-			await Task.WhenAll(commands.Select(x => x.Initialize(config, farmClient, steamClient)));
+			await Task.WhenAll(commands.Select(x => x.Initialize(config, farmClient, steamClientFactory)));
+#pragma warning disable CA1031
 		} catch (Exception e)
+#pragma warning restore CA1031
 		{
 			Log.Fatal(e, "Unhandled exception occurred!");
 		}

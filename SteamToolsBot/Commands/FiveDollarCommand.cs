@@ -41,7 +41,7 @@ public class FiveDollarCommand : ICommand
 		);
 	}
 
-	public Task Initialize(BotConfiguration config, IFlurlClient farmClient, IFlurlClient steamClient)
+	public Task Initialize(BotConfiguration config, IFlurlClient farmClient, Func<IFlurlClient> steamClientFactory)
 	{
 		httpClient = farmClient;
 		botConfiguration = config;

@@ -18,4 +18,8 @@ public class RequestFailedException : Exception
 	}
 
 	public EResult ResultCode { get; }
+
+    public RequestFailedException(string message, Exception innerException) : base(message, innerException)
+    {
+    }
 }
