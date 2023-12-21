@@ -132,7 +132,8 @@ internal static class Program
 					}
 				)
 				{
-					BaseAddress = new Uri("https://steamcommunity.com")
+					BaseAddress = new Uri("https://steamcommunity.com"),
+					Timeout = TimeSpan.FromSeconds(5)
 				}
 			);
 

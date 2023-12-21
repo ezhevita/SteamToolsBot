@@ -39,7 +39,7 @@ public partial class CardPriceCommand : ICommand
 #pragma warning disable CA2000
 			new MemoryCacheProvider(new MemoryCache(new MemoryCacheOptions())),
 #pragma warning restore CA2000
-			TimeSpan.FromMinutes(10)
+			TimeSpan.FromMinutes(5)
 		);
 
 		marketVolumePolicy = Policy.WrapAsync(
@@ -48,12 +48,20 @@ public partial class CardPriceCommand : ICommand
 				.FallbackAsync((uint?) null),
 			Policy<uint?>
 				.Handle<RequestFailedException>()
-				.WaitAndRetryAsync(3, attempt => TimeSpan.FromSeconds(attempt))
+				.WaitAndRetryAsync(3, attempt => TimeSpan.FromSeconds(attempt)),
+			Policy<uint?>
+				.Handle<FlurlHttpTimeoutException>()
+				.RetryAsync(5)
 		);
 
-		pricePolicy = Policy<OrderRecord>
-			.Handle<RequestFailedException>()
-			.WaitAndRetryAsync(3, attempt => TimeSpan.FromSeconds(attempt));
+		pricePolicy = Policy.WrapAsync(
+			Policy<OrderRecord>
+				.Handle<RequestFailedException>()
+				.WaitAndRetryAsync(3, attempt => TimeSpan.FromSeconds(attempt)),
+			Policy<OrderRecord>
+				.Handle<FlurlHttpTimeoutException>()
+				.RetryAsync(5)
+		);
 	}
 
 	public string Command => "cardprice";
