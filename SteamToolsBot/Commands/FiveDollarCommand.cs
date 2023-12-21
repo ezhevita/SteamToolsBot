@@ -33,7 +33,9 @@ public class FiveDollarCommand : ICommand
 	{
 		executePolicy = Policy.WrapAsync(
 			Policy.CacheAsync<string>(
+#pragma warning disable CA2000
 				new MemoryCacheProvider(new MemoryCache(new MemoryCacheOptions())),
+#pragma warning restore CA2000
 				TimeSpan.FromMinutes(5)
 			),
 			Policy<string>.HandleResult(string.IsNullOrEmpty)
@@ -66,7 +68,7 @@ public class FiveDollarCommand : ICommand
 		return priceRegex.Match(response).Groups[1].Value;
 	}
 
-	private Task RefreshAuth() =>
+	private Task<IFlurlResponse> RefreshAuth() =>
 		httpClient.Request("Api", "Command")
 			.PostJsonAsync(
 				new

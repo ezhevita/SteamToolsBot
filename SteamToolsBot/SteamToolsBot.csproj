@@ -3,9 +3,9 @@
     <PropertyGroup>
         <AnalysisMode>AllEnabledByDefault</AnalysisMode>
         <OutputType>Exe</OutputType>
-        <TargetFramework>net7.0</TargetFramework>
+        <TargetFramework>net8.0</TargetFramework>
         <Nullable>enable</Nullable>
-        <NoWarn>CA2007</NoWarn>
+        <NoWarn>CA2007,CA1303</NoWarn>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     </PropertyGroup>
 

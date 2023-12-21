@@ -25,6 +25,11 @@ internal static class Program
 {
 	private static readonly SemaphoreSlim MainThreadSemaphore = new(0, 1);
 
+	private static readonly JsonSerializerOptions SerializerOptions = new()
+	{
+		Converters = {new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)}
+	};
+
 	private static async Task Main()
 	{
 		if (!File.Exists("config.json"))
@@ -37,12 +42,7 @@ internal static class Program
 		BotConfiguration? config;
 		await using (var configFile = File.OpenRead("config.json"))
 		{
-			config = await JsonSerializer.DeserializeAsync<BotConfiguration>(
-				configFile, new JsonSerializerOptions
-				{
-					Converters = {new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)}
-				}
-			);
+			config = await JsonSerializer.DeserializeAsync<BotConfiguration>(configFile, SerializerOptions);
 
 			if (config == null)
 			{
@@ -82,6 +82,7 @@ internal static class Program
 			new CardPriceCommand()
 		};
 
+#pragma warning disable CA2000
 		var farmClient = new FlurlClient(
 			new HttpClient(
 				new HttpClientHandler
@@ -100,6 +101,7 @@ internal static class Program
 				}
 			}
 		);
+#pragma warning restore CA2000
 
 		var redis = await ConnectionMultiplexer.ConnectAsync(config.RedisHostname);
 		var rateLimiter = new RateLimiter(redis, TimeSpan.FromSeconds(config.CooldownSeconds));

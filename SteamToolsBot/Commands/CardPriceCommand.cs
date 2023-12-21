@@ -20,10 +20,10 @@ using File = System.IO.File;
 
 namespace SteamToolsBot.Commands;
 
-public class CardPriceCommand : ICommand
+public partial class CardPriceCommand : ICommand
 {
 	private readonly AsyncPolicy<string> executePolicy;
-	private readonly Regex itemIDRegex = new(@"Market_LoadOrderSpread\(\s*(\d+)\s*\)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+	private readonly Regex itemIDRegex = ItemIDRegex();
 	private readonly AsyncPolicy<uint?> marketVolumePolicy;
 	private readonly AsyncPolicy<OrderRecord> pricePolicy;
 
@@ -36,7 +36,9 @@ public class CardPriceCommand : ICommand
 	public CardPriceCommand()
 	{
 		executePolicy = Policy.CacheAsync<string>(
+#pragma warning disable CA2000
 			new MemoryCacheProvider(new MemoryCache(new MemoryCacheOptions())),
+#pragma warning restore CA2000
 			TimeSpan.FromMinutes(10)
 		);
 
@@ -70,6 +72,8 @@ public class CardPriceCommand : ICommand
 
 	public async Task Initialize(BotConfiguration config, IFlurlClient farmClient, Func<IFlurlClient> steamClientFactory)
 	{
+		ArgumentNullException.ThrowIfNull(config);
+
 		currencyCodes = config.Currencies;
 		saleAppID = config.SaleAppID;
 		httpClientFactory = steamClientFactory;
@@ -112,7 +116,7 @@ public class CardPriceCommand : ICommand
 		}
 
 		var internalCards = new Dictionary<uint, string>(marketCards.Results.Count);
-		foreach (var card in marketCards.Results.Where(x => !x.Name.Contains("Mystery")))
+		foreach (var card in marketCards.Results.Where(x => !x.Name.Contains("Mystery", StringComparison.InvariantCulture)))
 		{
 			var itemMarketID = await GetItemMarketID(753, card.HashName);
 			internalCards.Add(itemMarketID, card.Name);
@@ -196,4 +200,7 @@ public class CardPriceCommand : ICommand
 
 		return response;
 	}
+
+    [GeneratedRegex(@"Market_LoadOrderSpread\(\s*(\d+)\s*\)", RegexOptions.CultureInvariant)]
+    private static partial Regex ItemIDRegex();
 }
