@@ -94,7 +94,8 @@ public partial class CardPriceCommand : ICommand
 			}
 		}
 
-		var marketCards = await httpClientFactory()
+		using var client = httpClientFactory();
+		var marketCards = await client
 			.Request("market", "search", "render")
 			.SetQueryParams(
 				new Dictionary<string, object>(7)
@@ -130,7 +131,8 @@ public partial class CardPriceCommand : ICommand
 
 	private async Task<uint> GetItemMarketID(uint appID, string marketHashName)
 	{
-		var response = await httpClientFactory()
+		using var client = httpClientFactory();
+		var response = await client
 			.Request("market", "listings", appID, marketHashName)
 			.GetStringAsync();
 
@@ -139,7 +141,8 @@ public partial class CardPriceCommand : ICommand
 
 	private async Task<uint?> GetItemMarketVolume(string hashName)
 	{
-		var response = await httpClientFactory().Request("market", "priceoverview")
+		using var client = httpClientFactory();
+		var response = await client.Request("market", "priceoverview")
 			.SetQueryParams(
 				new
 				{
@@ -172,7 +175,9 @@ public partial class CardPriceCommand : ICommand
 
 	private async Task<OrderRecord> GetPriceAndQuantityOfItem(uint itemID, ECurrencyCode currency)
 	{
-		var response = await httpClientFactory().Request("market", "itemordershistogram")
+		using var client = httpClientFactory();
+		var response = await client
+			.Request("market", "itemordershistogram")
 			.SetQueryParams(
 				new
 				{
