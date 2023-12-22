@@ -178,7 +178,7 @@ public partial class CardPriceCommand : ICommand
 
 		var volume = await marketVolumePolicy.ExecuteAsync(() => GetItemMarketVolume(hashName));
 
-		return new ItemPriceInfo(name, results.Zip(currencies).ToDictionary(x => x.Second, x => x.First), volume);
+		return new ItemPriceInfo(appID, name, results.Zip(currencies).ToDictionary(x => x.Second, x => x.First), volume);
 	}
 
 	private async Task<OrderRecord> GetPriceAndQuantityOfItem(uint itemID, ECurrencyCode currency)
