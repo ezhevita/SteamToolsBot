@@ -51,6 +51,9 @@ public partial class CardPriceCommand : ICommand
 				.WaitAndRetryAsync(3, attempt => TimeSpan.FromSeconds(attempt)),
 			Policy<uint?>
 				.Handle<FlurlHttpTimeoutException>()
+				.RetryAsync(5),
+			Policy<uint?>
+				.Handle<HttpRequestException>(e => e.StatusCode == HttpStatusCode.TooManyRequests)
 				.RetryAsync(5)
 		);
 
@@ -60,6 +63,9 @@ public partial class CardPriceCommand : ICommand
 				.WaitAndRetryAsync(3, attempt => TimeSpan.FromSeconds(attempt)),
 			Policy<OrderRecord>
 				.Handle<FlurlHttpTimeoutException>()
+				.RetryAsync(5),
+			Policy<OrderRecord>
+				.Handle<HttpRequestException>(e => e.StatusCode == HttpStatusCode.TooManyRequests)
 				.RetryAsync(5)
 		);
 	}
