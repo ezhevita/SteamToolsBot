@@ -211,7 +211,7 @@ public partial class CardPriceCommand : ICommand
 		var itemsInfo = await Task.WhenAll(tasksItemInfo);
 		var response = string.Join("\n", itemsInfo.Select(itemInfo => itemInfo.ToString()).OrderBy(x => x));
 
-		return response;
+		return response.Replace(".", "\\.", StringComparison.Ordinal);
 	}
 
     [GeneratedRegex(@"Market_LoadOrderSpread\(\s*(\d+)\s*\)", RegexOptions.CultureInvariant)]
