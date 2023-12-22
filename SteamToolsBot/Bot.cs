@@ -76,7 +76,7 @@ public class Bot
 
 				if (!string.IsNullOrEmpty(response))
 				{
-					await client.SendTextMessageAsync(message.Chat.Id, response, parseMode: ParseMode.Markdown, cancellationToken: cancellationToken);
+					await client.SendTextMessageAsync(message.Chat.Id, response, parseMode: ParseMode.MarkdownV2, cancellationToken: cancellationToken);
 				}
 #pragma warning disable CA1031
 			} catch (Exception e)

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Net;
 using SteamToolsBot.Enums;
 
 namespace SteamToolsBot.Models;
@@ -25,7 +24,7 @@ internal record ItemPriceInfo(uint AppID, string Name, IReadOnlyDictionary<ECurr
 	public override string ToString()
 	{
 		return
-			$"*[{Name}]({steamCommunityMarketURL}/{AppID}-{WebUtility.UrlEncode(Name)})*\n" +
+			$"*[{Name}]({steamCommunityMarketURL}/{AppID}-{Uri.EscapeDataString(Name)})*\n" +
 			string.Join(
 				"", PricesPerCurrency.Select(
 					priceCurrency => $"\t{priceCurrency.Value.Quantity} sell orders at {priceCurrency.Value.Price:F2}"
