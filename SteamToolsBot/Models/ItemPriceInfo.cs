@@ -17,6 +17,7 @@ internal record ItemPriceInfo(uint AppID, string Name, IReadOnlyDictionary<ECurr
 			ECurrencyCode.USD => "$",
 			ECurrencyCode.EUR => "€",
 			ECurrencyCode.RUB => "₽",
+			ECurrencyCode.KZT => "\u20b8",
 			_ => throw new ArgumentOutOfRangeException(nameof(currency))
 		};
 	}
