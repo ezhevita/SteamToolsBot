@@ -58,7 +58,9 @@ internal static class Program
 			.WriteTo.Console()
 			.WriteTo.File("logs/log.txt", rollingInterval: RollingInterval.Day)
 #pragma warning restore CA1305
-			.WriteTo.Telegram(config.TelegramToken, config.TelegramOwnerID.ToString(CultureInfo.InvariantCulture), restrictedToMinimumLevel: LogEventLevel.Information)
+			.WriteTo.Telegram(
+				config.TelegramToken, config.TelegramOwnerID.ToString(CultureInfo.InvariantCulture),
+				restrictedToMinimumLevel: LogEventLevel.Information)
 			.CreateLogger();
 
 		HashSet<long>? bannedUsers;
@@ -91,16 +93,14 @@ internal static class Program
 					CookieContainer = new CookieContainer(),
 					AllowAutoRedirect = true,
 					CheckCertificateRevocationList = true
-				}
-			)
+				})
 			{
 				BaseAddress = new Uri(config.IPCAddress),
 				DefaultRequestHeaders =
 				{
 					{"Authentication", config.IPCPassword}
 				}
-			}
-		);
+			});
 #pragma warning restore CA2000
 
 		var redis = await ConnectionMultiplexer.ConnectAsync(config.RedisHostname);
@@ -123,19 +123,17 @@ internal static class Program
 		}
 
 		var steamClientFactory = () => new FlurlClient(
-				new HttpClient(
-					new SocketsHttpHandler
-					{
-						Proxy = proxy,
-						UseProxy = true,
-						AutomaticDecompression = DecompressionMethods.All
-					}
-				)
+			new HttpClient(
+				new SocketsHttpHandler
 				{
-					BaseAddress = new Uri("https://steamcommunity.com"),
-					Timeout = TimeSpan.FromSeconds(5)
-				}
-			);
+					Proxy = proxy,
+					UseProxy = true,
+					AutomaticDecompression = DecompressionMethods.All
+				})
+			{
+				BaseAddress = new Uri("https://steamcommunity.com"),
+				Timeout = TimeSpan.FromSeconds(5)
+			});
 
 		try
 		{
@@ -147,16 +145,21 @@ internal static class Program
 			Log.Fatal(e, "Unhandled exception occurred!");
 		}
 
-		var russianCommands = commands.Select(x => new BotCommand {Command = x.Command, Description = x.RussianDescription}).ToArray();
-		await botClient.SetMyCommandsAsync(russianCommands, languageCode: "ru");
-		await botClient.SetMyCommandsAsync(russianCommands, languageCode: "uk");
-		await botClient.SetMyCommandsAsync(russianCommands, languageCode: "be");
+		var russianCommands = commands.Select(x => new BotCommand {Command = x.Command, Description = x.RussianDescription})
+			.ToArray();
 
-		var englishCommands = commands.Select(x => new BotCommand {Command = x.Command, Description = x.EnglishDescription}).ToArray();
+		foreach (var languageCode in (string[]) ["ru", "uk", "be"])
+		{
+			await botClient.SetMyCommandsAsync(russianCommands, languageCode: languageCode);
+		}
+
+		var englishCommands = commands.Select(x => new BotCommand {Command = x.Command, Description = x.EnglishDescription})
+			.ToArray();
 		await botClient.SetMyCommandsAsync(englishCommands);
 
 		var bot = new Bot(bannedUsers, commands, botUser.Username!, rateLimiter);
-		botClient.StartReceiving(bot.HandleUpdate, Bot.HandleError, new ReceiverOptions {AllowedUpdates = new[] {UpdateType.Message}});
+		botClient.StartReceiving(
+			bot.HandleUpdate, Bot.HandleError, new ReceiverOptions {AllowedUpdates = new[] {UpdateType.Message}});
 
 		await MainThreadSemaphore.WaitAsync();
 	}

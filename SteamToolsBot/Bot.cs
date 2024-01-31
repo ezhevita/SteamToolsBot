@@ -16,9 +16,9 @@ public class Bot
 {
 	private readonly HashSet<long> bannedUsers;
 	private readonly Dictionary<string, ICommand> commands;
+	private readonly RateLimiter rateLimiter;
 	private readonly Dictionary<ICommand, SemaphoreSlim> semaphores;
 	private readonly string username;
-	private readonly RateLimiter rateLimiter;
 
 	public Bot(HashSet<long> bannedUsers, IList<ICommand> commands, string username, RateLimiter rateLimiter)
 	{
@@ -32,6 +32,7 @@ public class Bot
 	internal static Task HandleError(ITelegramBotClient client, Exception exception, CancellationToken cancellationToken)
 	{
 		Log.Fatal(exception, "Unhandled exception occurred!");
+
 		return Task.CompletedTask;
 	}
 
@@ -46,7 +47,8 @@ public class Bot
 		if (await rateLimiter.ShouldUserBeRejected(message.From.Id))
 			return;
 
-		if ((message.Type != MessageType.Text) || (message.ForwardFrom != null) || string.IsNullOrEmpty(message.Text) || (message.Text[0] != '/'))
+		if ((message.Type != MessageType.Text) || (message.ForwardFrom != null) || string.IsNullOrEmpty(message.Text) ||
+		    (message.Text[0] != '/'))
 		{
 			return;
 		}
@@ -70,23 +72,30 @@ public class Bot
 
 			try
 			{
-				var sentMessage = await client.SendTextMessageAsync(message.Chat.Id, "Please wait...", cancellationToken: cancellationToken);
+				var sentMessage = await client.SendTextMessageAsync(
+					message.Chat.Id, "Please wait...", cancellationToken: cancellationToken);
+
 				await semaphore.WaitAsync(cancellationToken);
 
 				var response = await command.Execute();
 
 				if (!string.IsNullOrEmpty(response))
 				{
-					await client.SendTextMessageAsync(message.Chat.Id, response.Replace(".", "\\.", StringComparison.Ordinal), parseMode: ParseMode.MarkdownV2, disableWebPagePreview: true, cancellationToken: cancellationToken);
+					await client.SendTextMessageAsync(
+						message.Chat.Id, response.Replace(".", "\\.", StringComparison.Ordinal), parseMode: ParseMode.MarkdownV2,
+						disableWebPagePreview: true, cancellationToken: cancellationToken);
 				}
 
-				await ExceptionHandler.Silence(() => client.DeleteMessageAsync(sentMessage.Chat.Id, sentMessage.MessageId, cancellationToken));
+				await ExceptionHandler.Silence(
+					() => client.DeleteMessageAsync(sentMessage.Chat.Id, sentMessage.MessageId, cancellationToken));
 #pragma warning disable CA1031
 			} catch (Exception e)
 #pragma warning restore CA1031
 			{
 				Log.Error(e, "Got exception!");
-				await ExceptionHandler.Silence(() => client.SendTextMessageAsync(message.Chat.Id, "An error occured, please try again", cancellationToken: cancellationToken));
+				await ExceptionHandler.Silence(
+					() => client.SendTextMessageAsync(
+						message.Chat.Id, "An error occured, please try again", cancellationToken: cancellationToken));
 			} finally
 			{
 				semaphore.Release();

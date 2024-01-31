@@ -39,8 +39,7 @@ public partial class CardPriceCommand : ICommand
 #pragma warning disable CA2000
 			new MemoryCacheProvider(new MemoryCache(new MemoryCacheOptions())),
 #pragma warning restore CA2000
-			TimeSpan.FromMinutes(5)
-		);
+			TimeSpan.FromMinutes(5));
 
 		marketVolumePolicy = Policy.WrapAsync(
 			Policy<uint?>
@@ -54,8 +53,7 @@ public partial class CardPriceCommand : ICommand
 				.RetryAsync(5),
 			Policy<uint?>
 				.Handle<HttpRequestException>(e => e.StatusCode == HttpStatusCode.TooManyRequests)
-				.RetryAsync(5)
-		);
+				.RetryAsync(5));
 
 		pricePolicy = Policy.WrapAsync(
 			Policy<OrderRecord>
@@ -66,8 +64,7 @@ public partial class CardPriceCommand : ICommand
 				.RetryAsync(5),
 			Policy<OrderRecord>
 				.Handle<HttpRequestException>(e => e.StatusCode == HttpStatusCode.TooManyRequests)
-				.RetryAsync(5)
-		);
+				.RetryAsync(5));
 	}
 
 	public string Command => "cardprice";
@@ -104,6 +101,7 @@ public partial class CardPriceCommand : ICommand
 			if (cachedCards != null)
 			{
 				cards = cachedCards;
+
 				return;
 			}
 		}
@@ -121,8 +119,7 @@ public partial class CardPriceCommand : ICommand
 					{"appid", 753},
 					{"category_753_Game[]", "tag_app_" + config.SaleAppID},
 					{"category_753_cardborder[]", "tag_cardborder_0"}
-				}
-			)
+				})
 			.GetJsonAsync<SearchRenderResponse>();
 
 		if (!marketCards.Success)
@@ -163,8 +160,7 @@ public partial class CardPriceCommand : ICommand
 					currency = 1,
 					appid = 753,
 					market_hash_name = hashName
-				}
-			)
+				})
 			.GetJsonAsync<PriceOverviewResponse>();
 
 		if (!response.Success)
@@ -175,7 +171,8 @@ public partial class CardPriceCommand : ICommand
 		return response.Volume;
 	}
 
-	private async Task<ItemPriceInfo> GetItemPriceInformation(uint appID, uint itemID, string name, IList<ECurrencyCode> currencies)
+	private async Task<ItemPriceInfo> GetItemPriceInformation(uint appID, uint itemID, string name,
+		IList<ECurrencyCode> currencies)
 	{
 		var tasks = currencies.Select(currency => pricePolicy.ExecuteAsync(() => GetPriceAndQuantityOfItem(itemID, currency)));
 
@@ -199,8 +196,7 @@ public partial class CardPriceCommand : ICommand
 					currency = (byte) currency,
 					item_nameid = itemID,
 					language = "english"
-				}
-			).GetJsonAsync<ItemOrdersHistogramResponse>();
+				}).GetJsonAsync<ItemOrdersHistogramResponse>();
 
 		if (response.Success != EResult.OK)
 			throw new RequestFailedException(response.Success);
@@ -220,6 +216,6 @@ public partial class CardPriceCommand : ICommand
 		return response;
 	}
 
-    [GeneratedRegex(@"Market_LoadOrderSpread\(\s*(\d+)\s*\)", RegexOptions.CultureInvariant)]
-    private static partial Regex ItemIDRegex();
+	[GeneratedRegex(@"Market_LoadOrderSpread\(\s*(\d+)\s*\)", RegexOptions.CultureInvariant)]
+	private static partial Regex ItemIDRegex();
 }

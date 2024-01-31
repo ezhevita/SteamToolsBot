@@ -127,5 +127,5 @@ public enum EResult
 	SteamRealmMismatch = 120,
 	InvalidSignature = 121,
 	ParseFailure = 122,
-	NoVerifiedPhone = 123,
+	NoVerifiedPhone = 123
 }

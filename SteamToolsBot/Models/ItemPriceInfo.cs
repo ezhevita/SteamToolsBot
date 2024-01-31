@@ -6,7 +6,11 @@ using SteamToolsBot.Enums;
 
 namespace SteamToolsBot.Models;
 
-internal record ItemPriceInfo(uint AppID, string Name, IReadOnlyDictionary<ECurrencyCode, OrderRecord> PricesPerCurrency, uint? Volume)
+internal record ItemPriceInfo(
+	uint AppID,
+	string Name,
+	IReadOnlyDictionary<ECurrencyCode, OrderRecord> PricesPerCurrency,
+	uint? Volume)
 {
 	private const string steamCommunityMarketURL = "https://steamcommunity.com/market/listings/753/";
 

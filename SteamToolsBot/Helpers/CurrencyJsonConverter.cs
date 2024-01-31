@@ -6,20 +6,18 @@ using System.Text.RegularExpressions;
 
 namespace SteamToolsBot.Helpers;
 
-public class CurrencyJsonConverter : JsonConverter<decimal>
+public partial class CurrencyJsonConverter : JsonConverter<decimal>
 {
-	private readonly Regex currencyRegex = new(@"\$|[\u20A0-\u20CF]|(\s*pуб\.)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+	[GeneratedRegex(@"\$|[\u20A0-\u20CF]|(\s*pуб\.)", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
+	private static partial Regex CurrencyRegex();
+
 	public override decimal Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
 	{
 		return reader.TokenType switch
 		{
 			JsonTokenType.String => decimal.Parse(
-				currencyRegex.Replace(
-					reader.GetString()!.Replace(
-						" or more", "", StringComparison.Ordinal
-					), ""
-				).Replace(',', '.'), CultureInfo.InvariantCulture
-			),
+				CurrencyRegex().Replace(reader.GetString()!.Replace(" or more", "", StringComparison.Ordinal), "")
+					.Replace(',', '.'), CultureInfo.InvariantCulture),
 			JsonTokenType.Number => reader.GetDecimal(),
 			_ => throw new NotImplementedException()
 		};

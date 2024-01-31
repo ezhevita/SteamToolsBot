@@ -11,7 +11,8 @@ public class DecimalSeparatorJsonConverter : JsonConverter<uint>
 	{
 		return reader.TokenType switch
 		{
-			JsonTokenType.String => uint.Parse(reader.GetString()!.Replace(",", "", StringComparison.Ordinal), CultureInfo.InvariantCulture),
+			JsonTokenType.String => uint.Parse(
+				reader.GetString()!.Replace(",", "", StringComparison.Ordinal), CultureInfo.InvariantCulture),
 			JsonTokenType.Number => reader.GetUInt32(),
 			_ => throw new NotImplementedException()
 		};

@@ -7,8 +7,8 @@ namespace SteamToolsBot;
 
 public class RateLimiter
 {
-	private readonly ConnectionMultiplexer redis;
 	private readonly TimeSpan cooldown;
+	private readonly ConnectionMultiplexer redis;
 
 	public RateLimiter(ConnectionMultiplexer redis, TimeSpan cooldown)
 	{
