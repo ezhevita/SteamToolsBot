@@ -66,18 +66,21 @@ public class Bot
 
 		if (commands.TryGetValue(commandText, out var command))
 		{
-			var sentMessage = await client.SendTextMessageAsync(message.Chat.Id, "Please wait...", cancellationToken: cancellationToken);
 			var semaphore = semaphores[command];
-			await semaphore.WaitAsync(cancellationToken);
 
 			try
 			{
+				var sentMessage = await client.SendTextMessageAsync(message.Chat.Id, "Please wait...", cancellationToken: cancellationToken);
+				await semaphore.WaitAsync(cancellationToken);
+
 				var response = await command.Execute();
 
 				if (!string.IsNullOrEmpty(response))
 				{
 					await client.SendTextMessageAsync(message.Chat.Id, response.Replace(".", "\\.", StringComparison.Ordinal), parseMode: ParseMode.MarkdownV2, disableWebPagePreview: true, cancellationToken: cancellationToken);
 				}
+
+				await ExceptionHandler.Silence(() => client.DeleteMessageAsync(sentMessage.Chat.Id, sentMessage.MessageId, cancellationToken));
 #pragma warning disable CA1031
 			} catch (Exception e)
 #pragma warning restore CA1031
@@ -88,8 +91,6 @@ public class Bot
 			{
 				semaphore.Release();
 			}
-
-			await ExceptionHandler.Silence(() => client.DeleteMessageAsync(sentMessage.Chat.Id, sentMessage.MessageId, cancellationToken));
 		}
 	}
 }
