@@ -27,7 +27,9 @@ internal static class Program
 
 	private static readonly JsonSerializerOptions SerializerOptions = new()
 	{
-		Converters = {new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)}
+		AllowTrailingCommas = true,
+		Converters = {new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)},
+		ReadCommentHandling = JsonCommentHandling.Skip
 	};
 
 	private static async Task Main()
