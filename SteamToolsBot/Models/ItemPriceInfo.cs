@@ -51,6 +51,8 @@ internal sealed record ItemPriceInfo(
 					$"\t{buyOrderRecord.Quantity} <b>buy</b> orders @ {buyOrderRecord.Price:F2}{currencySymbol}");
 			}
 
+			sb.AppendLine("\t---");
+
 			foreach (var sellOrderRecord in orderRecords.Sell)
 			{
 				sb.AppendLine(
