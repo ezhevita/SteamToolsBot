@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -46,6 +47,7 @@ internal sealed partial class CommandHandler
 		string response;
 		try
 		{
+			LogCommandExecution(command.Command, GetUserInfo(userMessage.From!));
 			response = await _cachePolicy.ExecuteAsync(
 				(_, token) => command.Execute(token), new Context(command.Command), cancellationToken);
 
@@ -69,8 +71,35 @@ internal sealed partial class CommandHandler
 				disableWebPagePreview: true, cancellationToken: cancellationToken));
 	}
 
+	private static string GetUserInfo(User user)
+	{
+		StringBuilder sb = new();
+		if (user.Username != null)
+		{
+			sb.Append('@');
+			sb.Append(user.Username);
+		} else
+		{
+			sb.Append(user.FirstName);
+			if (user.LastName != null)
+			{
+				sb.Append(' ');
+				sb.Append(user.LastName);
+			}
+
+			sb.Append(" (");
+			sb.Append(user.Id);
+			sb.Append(')');
+		}
+
+		return sb.ToString();
+	}
+
 	[LoggerMessage(LogLevel.Error, "Failed executing command '{Command}'")]
 	private partial void LogCommandError(string command, Exception exception);
+
+	[LoggerMessage(LogLevel.Information, "User {User} has executed command {Command}")]
+	private partial void LogCommandExecution(string command, string user);
 
 	private static async Task SendTypingActionUntilCancelled(ITelegramBotClient botClient, long chatId,
 		CancellationToken cancellationToken)
