@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace SteamToolsBot.Models.Responses;
 
-public record BooleanResponse
+internal record BooleanResponse
 {
 	[JsonInclude]
 	[JsonPropertyName("success")]

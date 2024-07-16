@@ -4,7 +4,7 @@ using FluentValidation;
 
 namespace SteamToolsBot.Helpers;
 
-public static class ValidatorExtensions
+internal static class ValidatorExtensions
 {
 	private const long telegramMaxUserID = (1L << 52) - 1;
 

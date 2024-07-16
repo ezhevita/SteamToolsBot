@@ -3,7 +3,7 @@ using SteamToolsBot.Helpers;
 
 namespace SteamToolsBot.Options;
 
-public sealed record FarmWebOptions
+internal sealed record FarmWebOptions
 {
 	public string? IPCPassword { get; init; }
 

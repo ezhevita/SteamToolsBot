@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace SteamToolsBot.Helpers;
 
-public static class ServiceCollectionExtensions
+internal static class ServiceCollectionExtensions
 {
 	public static void AddValidatableOptions<T, TValidator>(this IServiceCollection serviceCollection)
 		where T : class

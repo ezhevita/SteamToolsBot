@@ -3,7 +3,7 @@ using SteamToolsBot.Enums;
 
 namespace SteamToolsBot.Models.Responses;
 
-public record ResultResponse
+internal record ResultResponse
 {
 	[JsonInclude]
 	[JsonPropertyName("success")]

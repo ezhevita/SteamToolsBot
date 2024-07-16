@@ -3,7 +3,7 @@ using SteamToolsBot.Helpers;
 
 namespace SteamToolsBot.Models.Responses;
 
-public sealed record PriceOverviewResponse : BooleanResponse
+internal sealed record PriceOverviewResponse : BooleanResponse
 {
 	[JsonConverter(typeof(DecimalSeparatorJsonConverter))]
 	[JsonInclude]

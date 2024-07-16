@@ -2,7 +2,7 @@ using FluentValidation;
 
 namespace SteamToolsBot.FarmWebOptionsValidator;
 
-public sealed record FiveDollarCommandOptions
+internal sealed record FiveDollarCommandOptions
 {
 	public required uint ItemAppID { get; init; }
 	public required ulong ItemID { get; init; }

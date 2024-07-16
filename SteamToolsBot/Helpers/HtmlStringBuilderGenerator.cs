@@ -47,7 +47,7 @@ internal sealed class HtmlStringBuilderGenerator
 		}
 	}
 
-	private sealed class LinkAppender : TagAppender
+	private class LinkAppender : TagAppender
 	{
 		public LinkAppender(StringBuilder stringBuilder, string link) : base(
 			stringBuilder, "a", new Dictionary<string, string>(1) {["href"] = link})

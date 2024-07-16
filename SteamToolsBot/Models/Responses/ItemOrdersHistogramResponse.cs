@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace SteamToolsBot.Models.Responses;
 
-public sealed record ItemOrdersHistogramResponse : ResultResponse
+internal sealed record ItemOrdersHistogramResponse : ResultResponse
 {
 	[JsonInclude]
 	[JsonPropertyName("sell_order_table")]

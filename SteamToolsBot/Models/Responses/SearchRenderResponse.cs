@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace SteamToolsBot.Models.Responses;
 
-public sealed record SearchRenderResponse : BooleanResponse
+internal sealed record SearchRenderResponse : BooleanResponse
 {
 	[JsonInclude]
 	[JsonPropertyName("results")]

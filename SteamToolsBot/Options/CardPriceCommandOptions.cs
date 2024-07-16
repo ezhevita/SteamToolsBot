@@ -7,7 +7,7 @@ using SteamToolsBot.Helpers;
 
 namespace SteamToolsBot.Options;
 
-public sealed record CardPriceCommandOptions
+internal sealed record CardPriceCommandOptions
 {
 	public required IReadOnlyCollection<ECurrencyCode> Currencies { get; init; }
 

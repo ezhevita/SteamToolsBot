@@ -3,7 +3,7 @@ using SteamToolsBot.Helpers;
 
 namespace SteamToolsBot.Options;
 
-public sealed record BotOptions
+internal sealed record BotOptions
 {
 	public ushort CommandResponseCacheSeconds { get; init; }
 	public ushort CooldownSeconds { get; init; }

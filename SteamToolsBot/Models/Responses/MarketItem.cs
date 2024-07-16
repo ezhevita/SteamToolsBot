@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace SteamToolsBot.Models.Responses;
 
-public sealed record MarketItem
+internal sealed record MarketItem
 {
 	[JsonInclude]
 	[JsonPropertyName("name")]

@@ -3,7 +3,7 @@ using SteamToolsBot.Helpers;
 
 namespace SteamToolsBot.Models.Responses;
 
-public sealed record OrderRecord
+internal sealed record OrderRecord
 {
 	[JsonConverter(typeof(CurrencyJsonConverter))]
 	[JsonInclude]

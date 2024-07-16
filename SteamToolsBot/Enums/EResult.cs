@@ -4,6 +4,8 @@ namespace SteamToolsBot.Enums;
 
 [SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Generated")]
 [SuppressMessage("ReSharper", "UnusedMember.Global", Justification = "Generated")]
+[SuppressMessage("Maintainability", "CA1515:Consider making public types internal",
+	Justification = "Required by RequestFailedException")]
 public enum EResult
 {
 	Invalid = 0,

@@ -5,7 +5,7 @@
 		<OutputType>Exe</OutputType>
 		<TargetFramework>net8.0</TargetFramework>
 		<Nullable>enable</Nullable>
-		<NoWarn>CA2007,CA1303,CA1812</NoWarn>
+		<NoWarn>CA1812;CA2007</NoWarn>
 		<DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
 	</PropertyGroup>
 
@@ -20,15 +20,6 @@
 		<PackageReference Include="Polly.Caching.Distributed" Version="3.0.1"/>
 		<PackageReference Include="StackExchange.Redis" Version="2.8.0"/>
 		<PackageReference Include="Telegram.Bot" Version="19.0.0"/>
-	</ItemGroup>
-
-	<ItemGroup>
-
-	</ItemGroup>
-
-	<ItemGroup>
-		<_ContentIncludedByDefault Remove="cache\2459330.json"/>
-		<_ContentIncludedByDefault Remove="cache\2640280.json"/>
 	</ItemGroup>
 
 </Project>

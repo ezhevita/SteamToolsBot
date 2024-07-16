@@ -5,7 +5,7 @@ namespace SteamToolsBot.Enums;
 [SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Generated")]
 [SuppressMessage("ReSharper", "UnusedMember.Global", Justification = "Generated")]
 [SuppressMessage("Design", "CA1027:Mark enums with FlagsAttribute", Justification = "Not a flag enum")]
-public enum ECurrencyCode
+internal enum ECurrencyCode
 {
 	Invalid = 0,
 	USD = 1,
