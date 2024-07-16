@@ -3,8 +3,9 @@ using System.Text.Json.Serialization;
 
 namespace SteamToolsBot.Models.Responses;
 
-public record SearchRenderResponse : BooleanResponse
+public sealed record SearchRenderResponse : BooleanResponse
 {
+	[JsonInclude]
 	[JsonPropertyName("results")]
-	public IList<MarketItem> Results { get; init; } = null!;
+	public IReadOnlyCollection<MarketItem>? Results { get; init; }
 }

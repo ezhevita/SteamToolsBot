@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 
 namespace SteamToolsBot.Helpers;
 
-public static class ExceptionHandler
+internal static class ExceptionHandler
 {
 	internal static async Task Silence(Func<Task> func)
 	{

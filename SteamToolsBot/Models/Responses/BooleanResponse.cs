@@ -4,6 +4,7 @@ namespace SteamToolsBot.Models.Responses;
 
 public record BooleanResponse
 {
+	[JsonInclude]
 	[JsonPropertyName("success")]
-	public bool Success { get; init; }
+	public required bool Success { get; init; }
 }

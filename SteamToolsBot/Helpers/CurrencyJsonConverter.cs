@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 
 namespace SteamToolsBot.Helpers;
 
-public partial class CurrencyJsonConverter : JsonConverter<decimal>
+internal sealed partial class CurrencyJsonConverter : JsonConverter<decimal>
 {
 	[GeneratedRegex(@"\$|[\u20A0-\u20CF]|(\s*pуб\.)", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
 	private static partial Regex CurrencyRegex();

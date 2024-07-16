@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 
 namespace SteamToolsBot.Helpers;
 
-public class DecimalSeparatorJsonConverter : JsonConverter<uint>
+internal sealed class DecimalSeparatorJsonConverter : JsonConverter<uint>
 {
 	public override uint Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
 	{

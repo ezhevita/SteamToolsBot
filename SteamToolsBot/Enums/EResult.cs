@@ -2,7 +2,8 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace SteamToolsBot.Enums;
 
-[SuppressMessage("ReSharper", "InconsistentNaming")]
+[SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Generated")]
+[SuppressMessage("ReSharper", "UnusedMember.Global", Justification = "Generated")]
 public enum EResult
 {
 	Invalid = 0,

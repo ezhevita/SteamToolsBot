@@ -3,7 +3,7 @@ using SteamToolsBot.Enums;
 
 namespace SteamToolsBot.Exceptions;
 
-public class RequestFailedException : Exception
+public sealed class RequestFailedException : Exception
 {
 	public RequestFailedException(EResult resultCode) => ResultCode = resultCode;
 

@@ -5,6 +5,7 @@ namespace SteamToolsBot.Models.Responses;
 
 public record ResultResponse
 {
+	[JsonInclude]
 	[JsonPropertyName("success")]
-	public EResult Success { get; init; }
+	public required EResult Success { get; init; }
 }

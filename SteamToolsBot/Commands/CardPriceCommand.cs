@@ -1,221 +1,138 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text.Json;
-using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
-using Flurl.Http;
-using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Polly;
-using Polly.Caching.Memory;
-using SteamToolsBot.Enums;
 using SteamToolsBot.Exceptions;
 using SteamToolsBot.Models;
-using SteamToolsBot.Models.Responses;
+using SteamToolsBot.Options;
+using SteamToolsBot.Services;
 using File = System.IO.File;
 
 namespace SteamToolsBot.Commands;
 
-public partial class CardPriceCommand : ICommand
+internal sealed class CardPriceCommand : ICommand, IDisposable
 {
-	private readonly AsyncPolicy<string> executePolicy;
-	private readonly Regex itemIDRegex = ItemIDRegex();
-	private readonly AsyncPolicy<uint?> marketVolumePolicy;
-	private readonly AsyncPolicy<OrderRecord> pricePolicy;
+	private readonly IOptionsMonitor<CardPriceCommandOptions> _commandOptions;
+	private readonly AsyncPolicy<uint?> _marketVolumePolicy;
+	private readonly AsyncPolicy _policy;
+	private readonly IServiceProvider _serviceProvider;
+	private readonly SemaphoreSlim _updateSemaphore = new(1, 1);
 
-	private IReadOnlyDictionary<uint, string> cards = null!;
-	private IList<ECurrencyCode> currencyCodes = null!;
-	private Func<IFlurlClient> httpClientFactory = null!;
+	private IReadOnlyDictionary<uint, string>? _cards;
 
-	private uint saleAppID;
-
-	public CardPriceCommand()
+	public CardPriceCommand(IOptionsMonitor<CardPriceCommandOptions> commandOptions, IServiceProvider serviceProvider)
 	{
-		executePolicy = Policy.CacheAsync<string>(
-#pragma warning disable CA2000
-			new MemoryCacheProvider(new MemoryCache(new MemoryCacheOptions())),
-#pragma warning restore CA2000
-			TimeSpan.FromMinutes(5));
+		_commandOptions = commandOptions;
+		_serviceProvider = serviceProvider;
 
-		marketVolumePolicy = Policy.WrapAsync(
-			Policy<uint?>
-				.Handle<HttpRequestException>(e => e.StatusCode == HttpStatusCode.InternalServerError)
-				.FallbackAsync((uint?) null),
-			Policy<uint?>
-				.Handle<RequestFailedException>()
-				.WaitAndRetryAsync(3, attempt => TimeSpan.FromSeconds(attempt)),
-			Policy<uint?>
-				.Handle<FlurlHttpTimeoutException>()
-				.RetryAsync(5),
-			Policy<uint?>
-				.Handle<HttpRequestException>(e => e.StatusCode == HttpStatusCode.TooManyRequests)
-				.RetryAsync(5));
+		_policy = Policy
+			.Handle<RequestFailedException>()
+			.WaitAndRetryAsync(3, static attempt => TimeSpan.FromSeconds(attempt));
 
-		pricePolicy = Policy.WrapAsync(
-			Policy<OrderRecord>
-				.Handle<RequestFailedException>()
-				.WaitAndRetryAsync(3, attempt => TimeSpan.FromSeconds(attempt)),
-			Policy<OrderRecord>
-				.Handle<FlurlHttpTimeoutException>()
-				.RetryAsync(5),
-			Policy<OrderRecord>
-				.Handle<HttpRequestException>(e => e.StatusCode == HttpStatusCode.TooManyRequests)
-				.RetryAsync(5));
+		_marketVolumePolicy = Policy<uint?>
+			.Handle<HttpRequestException>(static e => e.StatusCode == HttpStatusCode.InternalServerError)
+			.FallbackAsync((uint?) null)
+			.WrapAsync(_policy);
 	}
 
 	public string Command => "cardprice";
 	public string EnglishDescription => "Get prices and volumes of the sale cards";
 	public string RussianDescription => "Получить стоимость и объём торгов распродажных карт";
 
-	public async Task<string> Execute()
+	public async Task<string> Execute(CancellationToken cancellationToken)
 	{
-		if (saleAppID == 0)
+		if (_commandOptions.CurrentValue.SaleAppID == 0)
 		{
+			_cards = null;
+
 			return "There is no sale right now!";
 		}
 
-		return await executePolicy.ExecuteAsync(_ => GetResponse(), new Context(Command));
-	}
-
-	public async Task Initialize(BotConfiguration config, IFlurlClient farmClient, Func<IFlurlClient> steamClientFactory)
-	{
-		ArgumentNullException.ThrowIfNull(config);
-
-		currencyCodes = config.Currencies;
-		saleAppID = config.SaleAppID;
-		httpClientFactory = steamClientFactory;
-		if (saleAppID == 0)
+		if (_cards == null)
 		{
-			return;
-		}
-
-		var cacheFileName = Path.Join("cache", saleAppID + ".json");
-		if (File.Exists(cacheFileName))
-		{
-			await using var cardsFile = File.OpenRead(cacheFileName);
-			var cachedCards = await JsonSerializer.DeserializeAsync<Dictionary<uint, string>>(cardsFile);
-			if (cachedCards != null)
+			await _updateSemaphore.WaitAsync(cancellationToken);
+			try
 			{
-				cards = cachedCards;
-
-				return;
+				_cards = await _policy.ExecuteAsync(LoadSaleCards, cancellationToken);
+			} finally
+			{
+				_updateSemaphore.Release();
 			}
 		}
 
-		using var client = httpClientFactory();
-		var marketCards = await client
-			.Request("market", "search", "render")
-			.SetQueryParams(
-				new Dictionary<string, object>(7)
-				{
-					{"count", 100},
-					{"norender", "1"},
-					{"sort_column", "price"},
-					{"sord_dir", "desc"},
-					{"appid", 753},
-					{"category_753_Game[]", "tag_app_" + config.SaleAppID},
-					{"category_753_cardborder[]", "tag_cardborder_0"}
-				})
-			.GetJsonAsync<SearchRenderResponse>();
-
-		if (!marketCards.Success)
-		{
-			throw new RequestFailedException("Could not retrieve card information!");
-		}
-
-		var internalCards = new Dictionary<uint, string>(marketCards.Results.Count);
-		foreach (var card in marketCards.Results.Where(x => !x.Name.Contains("Mystery", StringComparison.InvariantCulture)))
-		{
-			var itemMarketID = await GetItemMarketID(753, card.HashName);
-			internalCards.Add(itemMarketID, card.Name);
-			await Task.Delay(1000);
-		}
-
-		cards = internalCards;
-		await using var cardsCache = File.OpenWrite(cacheFileName);
-		await JsonSerializer.SerializeAsync(cardsCache, cards);
-	}
-
-	private async Task<uint> GetItemMarketID(uint appID, string marketHashName)
-	{
-		using var client = httpClientFactory();
-		var response = await client
-			.Request("market", "listings", appID, marketHashName)
-			.GetStringAsync();
-
-		return uint.Parse(itemIDRegex.Match(response).Groups[1].ValueSpan, CultureInfo.InvariantCulture);
-	}
-
-	private async Task<uint?> GetItemMarketVolume(string hashName)
-	{
-		using var client = httpClientFactory();
-		var response = await client.Request("market", "priceoverview")
-			.SetQueryParams(
-				new
-				{
-					currency = 1,
-					appid = 753,
-					market_hash_name = hashName
-				})
-			.GetJsonAsync<PriceOverviewResponse>();
-
-		if (!response.Success)
-		{
-			throw new RequestFailedException();
-		}
-
-		return response.Volume;
-	}
-
-	private async Task<ItemPriceInfo> GetItemPriceInformation(uint appID, uint itemID, string name,
-		IList<ECurrencyCode> currencies)
-	{
-		var tasks = currencies.Select(currency => pricePolicy.ExecuteAsync(() => GetPriceAndQuantityOfItem(itemID, currency)));
-
-		var results = await Task.WhenAll(tasks);
-		var hashName = $"{appID}-{name}";
-
-		var volume = await marketVolumePolicy.ExecuteAsync(() => GetItemMarketVolume(hashName));
-
-		return new ItemPriceInfo(appID, name, results.Zip(currencies).ToDictionary(x => x.Second, x => x.First), volume);
-	}
-
-	private async Task<OrderRecord> GetPriceAndQuantityOfItem(uint itemID, ECurrencyCode currency)
-	{
-		using var client = httpClientFactory();
-		var response = await client
-			.Request("market", "itemordershistogram")
-			.SetQueryParams(
-				new
-				{
-					norender = 1,
-					currency = (byte) currency,
-					item_nameid = itemID,
-					language = "english"
-				}).GetJsonAsync<ItemOrdersHistogramResponse>();
-
-		if (response.Success != EResult.OK)
-			throw new RequestFailedException(response.Success);
-
-		if (response.SellOrderTable.Count == 0)
-			throw new RequestFailedException();
-
-		return response.SellOrderTable.OrderBy(x => x.Price).First();
-	}
-
-	private async Task<string> GetResponse()
-	{
-		var tasksItemInfo = cards.Select(card => GetItemPriceInformation(saleAppID, card.Key, card.Value, currencyCodes));
+		var tasksItemInfo = _cards.Select(card => GetItemPriceInformation(card.Key, card.Value, cancellationToken));
 		var itemsInfo = await Task.WhenAll(tasksItemInfo);
-		var response = string.Join("\n", itemsInfo.Select(itemInfo => itemInfo.ToString()).OrderBy(x => x));
+		var response = string.Join('\n', itemsInfo.Select(static itemInfo => itemInfo.ToString()).OrderBy(x => x));
 
 		return response;
 	}
 
-	[GeneratedRegex(@"Market_LoadOrderSpread\(\s*(\d+)\s*\)", RegexOptions.CultureInvariant)]
-	private static partial Regex ItemIDRegex();
+	public void Dispose()
+	{
+		_updateSemaphore.Dispose();
+	}
+
+	private MarketWebClient CreateClient() => _serviceProvider.GetRequiredService<MarketWebClient>();
+
+	private async Task<ItemPriceInfo> GetItemPriceInformation(uint itemID, string name, CancellationToken cancellationToken)
+	{
+		var appID = _commandOptions.CurrentValue.SaleAppID;
+		var currencies = _commandOptions.CurrentValue.Currencies;
+		var tasks = currencies.Select(
+			currency => _policy.ExecuteAsync(
+				token => CreateClient().GetNLowestOrders(itemID, currency, 2, token), cancellationToken));
+
+		var results = await Task.WhenAll(tasks);
+		var hashName = $"{appID}-{name}";
+
+		var volume = await _marketVolumePolicy.ExecuteAsync(
+			token => CreateClient().GetItemMarketVolume(hashName, token), cancellationToken);
+
+		return new ItemPriceInfo(
+			appID, name, results.Zip(currencies).ToDictionary(static x => x.Second, static x => x.First), volume);
+	}
+
+	private async Task<IReadOnlyDictionary<uint, string>> LoadSaleCards(CancellationToken cancellationToken)
+	{
+		var saleAppID = _commandOptions.CurrentValue.SaleAppID;
+		var cacheFileName = Path.Join("cache", saleAppID + ".json");
+		if (File.Exists(cacheFileName))
+		{
+			await using var cardsFile = File.OpenRead(cacheFileName);
+			var cachedCards = await JsonSerializer.DeserializeAsync<Dictionary<uint, string>>(
+				cardsFile, cancellationToken: cancellationToken);
+
+			if (cachedCards != null)
+			{
+				return cachedCards;
+			}
+		}
+
+		var marketCards = await CreateClient().GetCardsOnMarketForAppID(saleAppID, cancellationToken);
+
+		var internalCards = new Dictionary<uint, string>(marketCards.Count);
+		var cardsToScan = marketCards.Any(static card => !card.Name.Contains("Mystery", StringComparison.InvariantCulture))
+			? marketCards.Where(static x => !x.Name.Contains("Mystery", StringComparison.InvariantCulture))
+			: marketCards;
+
+		foreach (var card in cardsToScan)
+		{
+			var itemMarketID = await CreateClient().GetItemMarketID(753, card.HashName, cancellationToken);
+			internalCards.Add(itemMarketID, card.Name);
+			await Task.Delay(1000, cancellationToken);
+		}
+
+		await using var cardsCache = File.OpenWrite(cacheFileName);
+		await JsonSerializer.SerializeAsync(cardsCache, internalCards, cancellationToken: cancellationToken);
+
+		return internalCards;
+	}
 }

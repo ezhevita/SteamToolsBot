@@ -2,10 +2,10 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace SteamToolsBot.Enums;
 
-[SuppressMessage("ReSharper", "InconsistentNaming")]
-#pragma warning disable CA1027
+[SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Generated")]
+[SuppressMessage("ReSharper", "UnusedMember.Global", Justification = "Generated")]
+[SuppressMessage("Design", "CA1027:Mark enums with FlagsAttribute", Justification = "Not a flag enum")]
 public enum ECurrencyCode
-#pragma warning restore CA1027
 {
 	Invalid = 0,
 	USD = 1,

@@ -1,168 +1,91 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Threading;
-using System.Threading.Tasks;
-using Flurl.Http;
-using Serilog;
-using Serilog.Events;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Http.Resilience;
+using Microsoft.Extensions.Options;
+using Polly;
+using Polly.Caching;
+using Polly.Caching.Distributed;
 using StackExchange.Redis;
 using SteamToolsBot.Commands;
+using SteamToolsBot.FarmWebOptionsValidator;
+using SteamToolsBot.Helpers;
+using SteamToolsBot.Models;
+using SteamToolsBot.Options;
+using SteamToolsBot.Services;
 using Telegram.Bot;
 using Telegram.Bot.Polling;
-using Telegram.Bot.Types;
-using Telegram.Bot.Types.Enums;
-using File = System.IO.File;
 
-namespace SteamToolsBot;
+var builder = Host.CreateApplicationBuilder(args);
+builder.Services.AddValidatableOptions<BotOptions, BotOptionsValidator>();
+builder.Services.AddValidatableOptions<CardPriceCommandOptions, CardPriceCommandOptionsValidator>();
+builder.Services.AddValidatableOptions<FarmWebOptions, FarmWebOptionsValidator>();
+builder.Services.AddValidatableOptions<FiveDollarCommandOptions, FiveDollarCommandOptionsValidator>();
 
-internal static class Program
-{
-	private static readonly SemaphoreSlim MainThreadSemaphore = new(0, 1);
+builder.Services.AddOptions<ConfigurationOptions>()
+	.Configure<IOptions<BotOptions>>(
+		static (redisOptions, botOptions) => redisOptions.EndPoints.Add(botOptions.Value.RedisHostname));
+builder.Services.AddOptions<RedisCacheOptions>()
+	.Configure<IOptions<ConfigurationOptions>>(
+		static (cacheOptions, redisOptions) => cacheOptions.ConfigurationOptions = redisOptions.Value);
 
-	private static readonly JsonSerializerOptions SerializerOptions = new()
-	{
-		AllowTrailingCommas = true,
-		Converters = {new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)},
-		ReadCommentHandling = JsonCommentHandling.Skip
-	};
+builder.Services.AddSingleton<IDistributedCache, RedisCache>();
+builder.Services.AddSingleton<IAsyncCacheProvider<string>, NetStandardIDistributedCacheStringProvider>();
+builder.Services.AddSingleton<AsyncCachePolicy<string>>(
+	static sp => Policy.CacheAsync(
+		sp.GetRequiredService<IAsyncCacheProvider<string>>(),
+		TimeSpan.FromSeconds(sp.GetRequiredService<IOptions<BotOptions>>().Value.CommandResponseCacheSeconds)));
 
-	private static async Task Main()
-	{
-		if (!File.Exists("config.json"))
+builder.Services.AddHttpClient("telegram_bot_client")
+	.AddTypedClient<ITelegramBotClient>(
+		static (httpClient, sp) =>
 		{
-			Console.WriteLine("Config file does not exist, shutting down...");
+			var botConfig = sp.GetRequiredService<IOptions<BotOptions>>().Value;
+			var options = new TelegramBotClientOptions(botConfig.TelegramToken);
 
-			return;
-		}
+			return new TelegramBotClient(options, httpClient);
+		});
 
-		BotConfiguration? config;
-		await using (var configFile = File.OpenRead("config.json"))
+builder.Services.AddScoped<IUpdateHandler, UpdateHandler>();
+builder.Services.AddScoped<ReceiverService>();
+builder.Services.AddSingleton<BotUserData>();
+builder.Services.AddSingleton<IRateLimiter, RedisRateLimiter>();
+
+builder.Services.AddHttpClient<FarmWebClient>()
+	.ConfigurePrimaryHttpMessageHandler(
+		static _ => new HttpClientHandler
 		{
-			config = await JsonSerializer.DeserializeAsync<BotConfiguration>(configFile, SerializerOptions);
+			AllowAutoRedirect = true,
+			AutomaticDecompression = DecompressionMethods.All,
+			CookieContainer = new CookieContainer(),
+			UseCookies = true
+		});
 
-			if (config == null)
-			{
-				Console.WriteLine("Config file is invalid!");
-
-				return;
-			}
-		}
-
-#pragma warning disable CA1305
-		Log.Logger = new LoggerConfiguration()
-			.MinimumLevel.Debug()
-			.WriteTo.Console()
-			.WriteTo.File("logs/log.txt", rollingInterval: RollingInterval.Day)
-#pragma warning restore CA1305
-			.WriteTo.Telegram(
-				config.TelegramToken, config.TelegramOwnerID.ToString(CultureInfo.InvariantCulture),
-				restrictedToMinimumLevel: LogEventLevel.Information)
-			.CreateLogger();
-
-		HashSet<long>? bannedUsers;
-		if (File.Exists("banned.json"))
+builder.Services.AddHttpClient<CardPriceCommand>(
+		static client =>
 		{
-			await using var bannedFile = File.OpenRead("banned.json");
-			bannedUsers = await JsonSerializer.DeserializeAsync<HashSet<long>>(bannedFile) ?? new HashSet<long>();
-		} else
-		{
-			bannedUsers = new HashSet<long>();
-		}
+			client.BaseAddress = new Uri("https://steamcommunity.com/market/");
+			client.Timeout = TimeSpan.FromSeconds(15);
+		})
+	.AddTypedClient<MarketWebClient>()
+	.ConfigurePrimaryHttpMessageHandler(
+		static sp => new HttpClientHandler
+			{Proxy = sp.GetRequiredService<IOptions<CardPriceCommandOptions>>().Value.SteamParsedProxy})
+	.AddResilienceHandler(
+		nameof(MarketWebClient), static pipelineBuilder => pipelineBuilder
+			.AddRetry(
+				new HttpRetryStrategyOptions
+					{BackoffType = DelayBackoffType.Linear, Delay = TimeSpan.FromSeconds(1), MaxRetryAttempts = 3}));
 
-		var botClient = new TelegramBotClient(config.TelegramToken);
-		Log.Debug("{Name} started", nameof(SteamToolsBot));
-		var botUser = await botClient.GetMeAsync();
-		Log.Information("Hello, I'm {Username}!", botUser.Username);
+builder.Services.AddSingleton<ICommand, FiveDollarCommand>();
+builder.Services.AddSingleton<ICommand, CardPriceCommand>();
+builder.Services.AddSingleton<CommandHandler>();
 
-		var commands = new ICommand[]
-		{
-			new FiveDollarCommand(),
-			new CardPriceCommand()
-		};
+builder.Services.AddHostedService<PollingService>();
 
-#pragma warning disable CA2000
-		var farmClient = new FlurlClient(
-			new HttpClient(
-				new HttpClientHandler
-				{
-					UseCookies = true,
-					CookieContainer = new CookieContainer(),
-					AllowAutoRedirect = true,
-					CheckCertificateRevocationList = true
-				})
-			{
-				BaseAddress = new Uri(config.IPCAddress),
-				DefaultRequestHeaders =
-				{
-					{"Authentication", config.IPCPassword}
-				}
-			});
-#pragma warning restore CA2000
-
-		var redis = await ConnectionMultiplexer.ConnectAsync(config.RedisHostname);
-		var rateLimiter = new RateLimiter(redis, TimeSpan.FromSeconds(config.CooldownSeconds));
-
-		WebProxy? proxy = null;
-		if (config.SteamProxy != null)
-		{
-			var proxyUri = new Uri(config.SteamProxy);
-
-			var credentials = string.IsNullOrEmpty(proxyUri.UserInfo)
-				? null
-				: proxyUri.UserInfo.Split(':') switch
-				{
-					[var user, var password] => new NetworkCredential(user, password),
-					_ => throw new ArgumentOutOfRangeException(nameof(proxyUri))
-				};
-
-			proxy = new WebProxy(proxyUri, true, null, credentials);
-		}
-
-		var steamClientFactory = () => new FlurlClient(
-			new HttpClient(
-				new SocketsHttpHandler
-				{
-					Proxy = proxy,
-					UseProxy = true,
-					AutomaticDecompression = DecompressionMethods.All
-				})
-			{
-				BaseAddress = new Uri("https://steamcommunity.com"),
-				Timeout = TimeSpan.FromSeconds(10)
-			});
-
-		try
-		{
-			await Task.WhenAll(commands.Select(x => x.Initialize(config, farmClient, steamClientFactory)));
-#pragma warning disable CA1031
-		} catch (Exception e)
-#pragma warning restore CA1031
-		{
-			Log.Fatal(e, "Unhandled exception occurred!");
-		}
-
-		var russianCommands = commands.Select(x => new BotCommand {Command = x.Command, Description = x.RussianDescription})
-			.ToArray();
-
-		foreach (var languageCode in (string[]) ["ru", "uk", "be"])
-		{
-			await botClient.SetMyCommandsAsync(russianCommands, languageCode: languageCode);
-		}
-
-		var englishCommands = commands.Select(x => new BotCommand {Command = x.Command, Description = x.EnglishDescription})
-			.ToArray();
-		await botClient.SetMyCommandsAsync(englishCommands);
-
-		var bot = new Bot(bannedUsers, commands, botUser.Username!, rateLimiter);
-		botClient.StartReceiving(
-			bot.HandleUpdate, Bot.HandleError, new ReceiverOptions {AllowedUpdates = new[] {UpdateType.Message}});
-
-		await MainThreadSemaphore.WaitAsync();
-	}
-}
+var host = builder.Build();
+await host.RunAsync();

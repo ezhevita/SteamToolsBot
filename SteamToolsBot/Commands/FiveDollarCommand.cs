@@ -1,68 +1,51 @@
 using System;
-using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
-using Flurl.Http;
-using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
 using Polly;
-using Polly.Caching.Memory;
 using SteamToolsBot.Exceptions;
+using SteamToolsBot.FarmWebOptionsValidator;
+using SteamToolsBot.Services;
 
 namespace SteamToolsBot.Commands;
 
-public partial class FiveDollarCommand : ICommand
+internal sealed class FiveDollarCommand : ICommand
 {
-	private readonly AsyncPolicy<string> executePolicy;
+	private readonly IOptionsMonitor<FiveDollarCommandOptions> _config;
+	private readonly AsyncPolicy<string> _executePolicy;
+	private readonly FarmWebClient _farmWebClient;
 
-	private BotConfiguration botConfiguration = null!;
-	private IFlurlClient httpClient = null!;
-
-	public FiveDollarCommand()
+	public FiveDollarCommand(IOptionsMonitor<FiveDollarCommandOptions> config, FarmWebClient farmWebClient)
 	{
-		executePolicy = Policy.WrapAsync(
-			Policy.CacheAsync<string>(
-#pragma warning disable CA2000
-				new MemoryCacheProvider(new MemoryCache(new MemoryCacheOptions())),
-#pragma warning restore CA2000
-				TimeSpan.FromMinutes(5)),
-			Policy<string>.HandleResult(string.IsNullOrEmpty).WaitAndRetryAsync(
-				3, attempt => TimeSpan.FromSeconds(attempt), (_, _, _) => RefreshAuth()));
+		_config = config;
+		_farmWebClient = farmWebClient;
+		_executePolicy = Policy<string>.Handle<RequestFailedException>()
+			.WaitAndRetryAsync(
+				3, static attempt => TimeSpan.FromSeconds(attempt),
+				(_, _, _) => _farmWebClient.SendCommand("farm " + _config.CurrentValue.TargetBotName, CancellationToken.None));
 	}
 
 	public string Command => "5dollar";
 	public string EnglishDescription => "Convert Steam $5 to Russian roubles";
 	public string RussianDescription => "Конвертация $5 в Steam в рубли";
 
-	public async Task<string> Execute()
+	public async Task<string> Execute(CancellationToken cancellationToken) =>
+		await _executePolicy.ExecuteAsync(GetPrice, cancellationToken);
+
+	private async Task<string> GetPrice(CancellationToken cancellationToken)
 	{
-		var result = await executePolicy.ExecuteAsync(_ => GetPrice(), new Context(Command));
+		var response = await _farmWebClient.GetBuyItemPage(
+			_config.CurrentValue.TargetBotName, _config.CurrentValue.ItemAppID, _config.CurrentValue.ItemID, 1,
+			cancellationToken);
+
+		if (response.Body == null)
+			throw new RequestFailedException();
+
+		var result = response.Body.QuerySelector("#review_total_value")?.TextContent;
 
 		if (string.IsNullOrEmpty(result))
 			throw new RequestFailedException();
 
 		return result;
 	}
-
-	public Task Initialize(BotConfiguration config, IFlurlClient farmClient, Func<IFlurlClient> steamClientFactory)
-	{
-		httpClient = farmClient;
-		botConfiguration = config;
-
-		return Task.CompletedTask;
-	}
-
-	private async Task<string> GetPrice()
-	{
-		var response = await httpClient.Request(
-			"Api", "Web", botConfiguration.BotName, "https://store.steampowered.com", "buyitem",
-			botConfiguration.FiveDollarItemAppID, botConfiguration.FiveDollarItemID, 1).GetStringAsync();
-
-		return PriceRegex().Match(response).Groups[1].Value;
-	}
-
-	[GeneratedRegex(
-		"<div id=\"review_total_value\" class=\"price\">(.+?)</div>", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
-	private static partial Regex PriceRegex();
-
-	private Task<IFlurlResponse> RefreshAuth() => httpClient.Request("Api", "Command")
-		.PostJsonAsync(new {Command = "farm " + botConfiguration.BotName});
 }
