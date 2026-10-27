@@ -60,15 +60,15 @@ internal sealed partial class CommandHandler
 		{
 			response = "Failed!";
 			LogCommandError(command.Command, e);
-		} finally
+		}
+		finally
 		{
 			await sendActionCancellationTokenSource.CancelAsync();
 		}
 
-		await ExceptionHandler.Silence(
-			() => botClient.SendTextMessageAsync(
-				userMessage.Chat.Id, response, parseMode: ParseMode.Html, replyToMessageId: userMessage.MessageId,
-				disableWebPagePreview: true, cancellationToken: cancellationToken));
+		await ExceptionHandler.Silence(() => botClient.SendMessage(
+			userMessage.Chat.Id, response, parseMode: ParseMode.Html, replyParameters: userMessage.MessageId,
+			linkPreviewOptions: LinkPreviewOptions.Disabled, cancellationToken: cancellationToken));
 	}
 
 	private static string GetUserInfo(User user)
@@ -78,7 +78,8 @@ internal sealed partial class CommandHandler
 		{
 			sb.Append('@');
 			sb.Append(user.Username);
-		} else
+		}
+		else
 		{
 			sb.Append(user.FirstName);
 			if (user.LastName != null)
@@ -108,12 +109,13 @@ internal sealed partial class CommandHandler
 		{
 			while (!cancellationToken.IsCancellationRequested)
 			{
-				await ExceptionHandler.Silence(
-					() => botClient.SendChatActionAsync(chatId, ChatAction.Typing, cancellationToken: cancellationToken));
+				await ExceptionHandler.Silence(() => botClient.SendChatAction(
+					chatId, ChatAction.Typing, cancellationToken: cancellationToken));
 
 				await Task.Delay(5000, cancellationToken);
 			}
-		} catch (TaskCanceledException)
+		}
+		catch (TaskCanceledException)
 		{
 		}
 	}

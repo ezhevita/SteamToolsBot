@@ -3,7 +3,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using SteamToolsBot.Commands;
-using SteamToolsBot.Models;
 using Telegram.Bot;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
@@ -13,13 +12,11 @@ namespace SteamToolsBot.Services;
 
 internal sealed partial class UpdateHandler : IUpdateHandler
 {
-	private readonly BotUserData _botUserData;
 	private readonly CommandHandler _commandHandler;
 	private readonly ILogger<UpdateHandler> _logger;
 
-	public UpdateHandler(BotUserData botUserData, CommandHandler commandHandler, ILogger<UpdateHandler> logger)
+	public UpdateHandler(CommandHandler commandHandler, ILogger<UpdateHandler> logger)
 	{
-		_botUserData = botUserData;
 		_commandHandler = commandHandler;
 		_logger = logger;
 	}
@@ -49,22 +46,13 @@ internal sealed partial class UpdateHandler : IUpdateHandler
 			return;
 
 		var usernameSeparator = messageText.IndexOf('@', StringComparison.Ordinal);
-		string command;
-		if (usernameSeparator != -1)
-		{
-			if (messageText[(usernameSeparator + 1)..] != _botUserData.Username)
-				return;
-
-			command = messageText[1..usernameSeparator];
-		} else
-		{
-			command = messageText[1..];
-		}
+		var command = usernameSeparator != -1 ? messageText[1..usernameSeparator] : messageText[1..];
 
 		await _commandHandler.Execute(botClient, command, message, cancellationToken);
 	}
 
-	public Task HandlePollingErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
+	public Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception, HandleErrorSource source,
+		CancellationToken cancellationToken)
 	{
 		LogPollingError(exception);
 
