@@ -1,9 +1,8 @@
-version: "3.7"
 services:
   bot:
+    restart: always
     build: .
-    volumes:
-      - ./SteamToolsBot/config.json:/app/config.json
-      - ./SteamToolsBot/banned.json:/app/banned.json
   redis:
-    image: redis
+    restart: always
+    image: redis:alpine
+    command: redis-server --save "" --appendonly no
