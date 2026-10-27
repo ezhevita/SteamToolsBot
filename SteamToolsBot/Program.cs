@@ -5,6 +5,7 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Polly;
 using Polly.Caching;
@@ -24,8 +25,12 @@ builder.Services.AddValidatableOptions<FarmWebOptions, FarmWebOptionsValidator>(
 builder.Services.AddValidatableOptions<FiveDollarCommandOptions, FiveDollarCommandOptionsValidator>();
 
 builder.Services.AddOptions<ConfigurationOptions>()
-	.Configure<IOptions<BotOptions>>(
-		static (redisOptions, botOptions) => redisOptions.EndPoints.Add(botOptions.Value.RedisHostname));
+	.Configure<IOptions<BotOptions>, ILoggerFactory>(
+		(redisOptions, botOptions, loggerFactory) =>
+		{
+			redisOptions.EndPoints.Add(botOptions.Value.RedisHostname);
+			redisOptions.LoggerFactory = loggerFactory;
+		});
 builder.Services.AddOptions<RedisCacheOptions>()
 	.Configure<IOptions<ConfigurationOptions>>(
 		static (cacheOptions, redisOptions) => cacheOptions.ConfigurationOptions = redisOptions.Value);
